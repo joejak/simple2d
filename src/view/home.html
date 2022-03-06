@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <script>
+var blocks = [];
+var DEFAULTBLOCKHEIGHT = 10;
+var DEFAULTBLOCKWIDTH = 10;
+var DEFAULTCOLOR = "blue";
+
+class COUNTER{
+    maxValue
+    currentValue
+    constructor(maxValue, currentValue){
+        this.maxValue = maxValue ? maxValue : undefined; 
+        this.currentValue = currentValue ? currentValue : 0; 
+    }        
+}
+
+class INDEXOR{
+    counters = {}; 
+    constructor(){}
+
+    hasCounter(name){
+        if(this.counters[name]){
+            return true; 
+        }
+        return false; 
+    }
+
+    addCounter(name){
+        if(name){
+            this.counters[name] = new COUNTER(); 
+        }   
+    }
+
+    getNewID(counter, createIfNonExistant){
+        createIfNonExistant ? createIfNonExistant : true; 
+        var name = "generic"; 
+        if(counter.TPath){
+            name = counter.TPath
+        }
+        else{
+            name = typeof counter == "string" ? counter : name; 
+        }
+        if(!this.hasCounter(name)){
+            if(createIfNonExistant){
+                this.addCounter(name);
+            }
+        }
+        return this.counters[name].currentValue++;
+    }
+
+    removeCounter(name){
+        if(this.hasCounter[name]){
+            delete this.counters[name]; 
+        }
+    }
+
+    resetCounter(name){
+        if(this.hasCounter(name)){
+            this.counters[name].currentValue = 0; 
+        }
+    }
+}
+
+var INDEX = new INDEXOR(); 
+
+var map;
+class GameMap {
+    cellsByCol=[]; 
+    cellsByRow=[]; 
+    rows;
+    cols;
+    cellWidth;
+    cellHeight;
+    TLX;
+    TLY;
+    BRX;
+    BRY;
+    mapMarginTop;
+    mapMarginLeft;
+    mapMarginRight;
+    mapMarginBottom;
+    constructor(X, Y, MaxX, MaxY, cellWidth, cellHeight, defaultColor, mapMargin, rows, cols){
+        this.mapMarginBottom = this.mapMarginRight = this.mapMarginLeft = this.mapMarginTop = mapMargin ? mapMargin : 10;
+        this.TLX = X+this.mapMarginLeft; 
+        this.TLY = Y+this.mapMarginTop; 
+        this.BRX = MaxX-this.mapMarginRight;
+        this.BRY = MaxY-this.mapMarginBottom;
+        if(cellWidth===undefined&&cols){
+            this.cols = cols; 
+            this.cellWidth = cols/Math.floor(this.BRX-this.TLX)
+        }
+        else{
+            this.cellWidth = cellWidth;
+            this.cols = Math.floor((this.BRX-this.TLX)/this.cellWidth); 
+        }
+        if(cellHeight===undefined&&rows){
+            this.rows = rows; 
+            this.cellHeight = rows/Math.floor(this.BRY-this.TLY);
+        }
+        else{
+            this.cellHeight = cellHeight;
+            this.rows = Math.floor((this.BRY-this.TLY)/this.cellHeight); 
+        }
+        this.BRX = this.TLX+(this.cols*this.cellWidth);
+        this.BRY = this.TLY+(this.rows*this.cellHeight);
+        for(var x = 0; x<this.cols; x++){
+            var xRows = []; 
+            for(var y = 0; y<this.rows; y++){
+                var tlx = this.TLX+(x*this.cellWidth);
+                var tly = this.TLY+(y*this.cellHeight); 
+                if((Math.random()*10)>8){
+                    var cell = new Cell(`${x}BY${y}`, tlx, tly, this.cellWidth, this.cellHeight, defaultColor); 
+                    if(Math.random()*10>5)
+                    {
+                        cell.addContents(new Wall())
+                    }
+                    else{
+                        cell.addContents(new Dirt())
+                    }
+                    xRows.push(cell); 
+                }
+                else{
+                    xRows.push(""); 
+                }  
+            }
+            this.cellsByCol.push(xRows); 
+        }
+        console.log(INDEX.counters); 
+        console.log(`Map Generated: columns (${this.cellsByCol.length}) | rows (${this.cellsByCol[0].length})`)
+        console.log(this); 
+    }
+
+    async drawMap(){
+    this.cellsByCol.forEach((cols)=>{
+            var colRows = ""; 
+            cols.forEach((cell)=>{
+                colRows+=cell.getHTML();
+            })
+            document.body.innerHTML+=colRows; 
+        })                     
+    }
+
+    getCells(){
+        var ret = []; 
+        this.cellsByCol.forEach((cols)=>{
+            ret.push(...cols.filter(nonEmpty=>{
+                return nonEmpty; 
+            }));
+        })
+        return ret; 
+    }
+
+    getCols(start, number){
+        return this.cells.slice(start, start+number); 
+    }
+
+    getCellsNear(x, y, range){
+        var approxMinCol = Math.floor(x/this.cellHeight) - range; 
+        var approxMaxCol = Math.ceil(x/this.cellHeight) + range; 
+        var approxMinRow = Math.floor(y/this.cellWidth) - range; 
+        var approxMaxRow = Math.ceil(y/this.cellWidth) +range; 
+        if(approxMinRow < 0){
+            approxMinRow = 0; 
+        }
+        if(approxMinCol < 0){
+            approxMinCol = 0; 
+        }
+        if(approxMaxCol > this.cols){
+            approxMaxCol = this.cols; 
+        }
+        if(approxMaxRow > this.rows){
+            approxMaxRow = this.rows; 
+        }
+        console.log(approxMinCol, approxMaxCol, approxMinRow, approxMaxRow)
+        var candidates = []; 
+        this.cellsByCol.slice(approxMinCol, approxMaxCol).forEach((col)=>{
+            candidates.push(...col.slice(approxMinRow, approxMaxRow).filter(nonEmpty=>{
+                return nonEmpty; 
+            })); 
+        })
+        return candidates; 
+    }
+
+
+}
+
+class Cell {
+    id
+    X
+    Y
+    width
+    height
+    color
+    contents
+    celement
+    constructor(id, x, y, width, height, color){
+        this.id = id; 
+        this.X = x; 
+        this.Y = y;
+        this.width = width; 
+        this.height = height; 
+        this.color = color;  
+        this.contents = []; 
+        this.celement = document.createElement("div");
+        document.body.appendChild(this.celement);
+        this.redrawElement(); 
+
+    }
+
+    refreshColorFromContent(){
+        if(this.contents.length > 0){
+            this.color = this.contents[this.contents.length-1].color;
+        }
+    }
+
+    redrawElement(){
+        try{
+            document.body.removeChild(this.celement);
+        }catch(ex){
+            //don't care
+        }
+        this.celement.setAttribute("id", this.id); 
+        this.celement.style.position = "absolute"; 
+        this.celement.style.backgroundColor = this.color; 
+        this.celement.style.width = this.width+"px"; 
+        this.celement.style.height = this.height+"px"; 
+        this.celement.style.left = this.X+"px"; 
+        this.celement.style.top = this.Y+"px"; 
+        document.body.appendChild(this.celement);  
+    }
+
+    addContents(content){
+        this.contents.push(content); 
+        if(content.color){
+            this.color = content.color
+        }
+        this.redrawElement(); 
+    }
+
+    removeContents(index){
+        this.contents = this.contents.splice(index, 1)
+    }
+
+    getHTML(){
+        return `<div id="${this.id}" style="position:absolute; background-color:${this.color}; width:${this.width}px; height:${this.height}px; left:${this.X}px; top:${this.Y}px"></div>`;
+    }
+    
+
+    getElement(){
+        if(this.celement){
+            return this.celement; 
+        }
+        else{
+            this.celement = document.getElementById(this.id); 
+            return this.celement; 
+        }
+    }
+}
+
+class Thing{
+    TPath
+    TYPE
+    name
+    type
+    constructor(T, name){
+        this.TYPE = "Thing"; 
+        this.TPath = this.TYPE+"/"+T; 
+        this.id = INDEX.getNewID(this.TPath, true); 
+        this.name = name; 
+    }
+}
+
+class PhysicalThing extends Thing{
+    TYPE
+    hp
+    maxhp
+    hardness
+    attributes
+    color 
+    constructor(T, name, hp, maxhp, hardness, color){
+        var TYPE = "PhysicalThing"; 
+        super(TYPE+"/"+T, name);  
+        this.TYPE = TYPE; 
+        this.hp = hp; 
+        this.maxhp = maxhp; 
+        this.hardness = hardness; 
+        this.color = color ? color : "white; opacity:0%"; 
+    }
+}
+
+class Wall extends PhysicalThing{
+    TYPE; 
+    constructor(){
+        var TYPE = "Wall"; 
+        var maxhp = 10; 
+        var hp = maxhp;
+        super(TYPE, "Wall", hp, maxhp, 10, "grey"); 
+        this.TYPE = TYPE; 
+    }
+}
+
+class Dirt extends PhysicalThing{
+    TYPE;
+    constructor(){
+        var TYPE = "Dirt";
+        var maxhp = 1; 
+        var hp = maxhp;
+        super(TYPE, "Dirt", hp, maxhp, 1, "brown")
+    }
+}
+
+
+function start(StartButton) {
+  document.body.innerHTML = "";
+  setTimeout(() => {
+    startGameLoop();
+  }, 500);
+}
+
+var stop = false;
+
+async function startGameLoop() {
+  map = await new GameMap(0, 0, window.visualViewport.width, window.visualViewport.height, DEFAULTBLOCKWIDTH, DEFAULTBLOCKHEIGHT,"blue",10);  
+  var arrow = new Arrow("PC");
+  document.body.innerHTML = document.body.innerHTML + arrow.getHTML();
+  box = await document.getElementById(arrow.id);
+  front = await document.getElementById(arrow.frontID); 
+  console.log(box, front);
+  window.onkeydown = keyd;
+  window.onkeyup = keyu;
+
+  gameLoop(box, front);
+  //stop = false;
+}
+
+function stopGameLoop() {
+  window.onkeydown = null;
+  window.onkeyup = null;
+  stop = true;
+}
+
+var up = false;
+var down = false;
+var left = false;
+var right = false;
+var flash = false;
+var lookUp = false;
+var lookDown = false; 
+var lookLeft = false; 
+var lookRight = true; 
+var distance = 1;
+function keyd(key) { 
+  switch (key.code) {
+    case "Escape": {
+      stopGameLoop();
+      break;
+    }
+    case "KeyW": {
+        up = true;
+        break;
+    }
+    case "KeyA": {
+        left = true;
+        break;
+    }
+    case "KeyS": {
+        down = true;
+        break;
+    }
+    case "KeyD": {
+        right = true;
+        break;
+    }
+    case "ArrowUp":{
+        lookUp = true; 
+        lookDown = false; 
+        lookLeft = false; 
+        lookRight = false;
+        break; 
+    }
+    case "ArrowDown":{
+        lookDown = true;
+        lookUp = false; 
+        lookLeft = false; 
+        lookRight = false; 
+        break; 
+    }
+    case "ArrowLeft":{
+        lookLeft = true;
+        lookUp = false; 
+        lookDown = false;  
+        lookRight = false; 
+        break;
+    }
+    case "ArrowRight":{
+        lookRight = true; 
+        lookUp = false; 
+        lookDown = false; 
+        lookLeft = false; 
+        break; 
+    }
+    case "Space": {
+        flash = true;
+        break;
+    }
+    default:
+        console.log("D:" + key.code);
+  }
+}
+
+function keyu(key) {
+  switch (key.code) {
+    case "KeyW": {
+        up = false;
+        break;
+    }
+    case "KeyA": {
+        left = false;
+        break;
+    }
+    case "KeyS": {
+        down = false;
+        break;
+    }
+    case "KeyD": {
+        right = false;
+        break;
+    }
+    case "Space": {
+        flash = false;
+        break;
+    }
+    default:
+      console.log("U:" + key.code);
+  }
+}
+
+function checkBounds(x, y, width, height, tlx, tly, brx, bry) {
+  if (y + height > bry) {
+    y = (bry-(height));
+  }
+  if (x + width > brx) {
+    x = (brx-(width));
+  }
+  if (x < tlx) {
+    x = tlx;
+  }
+  if (y < tly) {
+    y = tly;
+  }
+  var XY = { X: null, Y: null };
+  XY.X = x;
+  XY.Y = y;
+  return XY;
+}
+
+function xOverlap(x1, w1, x2, w2){
+    return Math.abs(Math.max(x1+w1, x2+w2) - Math.min(x1, x2)); 
+}
+
+function yOverlap(y1, h1, y2, h2){
+    return Math.abs(Math.max(y1+h1, y2+h2) - Math.min(y1, y2)); 
+}
+
+function checkCollision(x, y, width, height) {
+    var XY = {X:x, Y:y}; 
+    var colliders = map.getCellsNear(x, y, 1);
+    var colliders = colliders.sort((a, b) => {
+        return (xOverlap(b.X, b.width, x, height)*yOverlap(b.Y, b.height, y, height) - xOverlap(a.X, a.width, x, height)*yOverlap(a.Y, a.height, y, height)); 
+    })
+    var breachXr; 
+    var breachXl; 
+    var breachYb;
+    var breachYt;
+    var YAligned;
+    var XAligned; 
+    var xDiff;
+    var yDiff; 
+    for(var i = 0; i<colliders.length; i++){
+        var cell = colliders[i]; 
+        xDiff = xOverlap(XY.X, width, cell.X, cell.width);
+        yDiff = yOverlap(XY.Y, height, cell.Y, cell.height); 
+        breachXr = XY.X+width > cell.X && XY.X < cell.X; 
+        breachXl = XY.X < cell.X+cell.width && XY.X+width > cell.X+cell.width;
+        breachYt = XY.Y < cell.Y+cell.height && XY.Y+height > cell.Y+cell.height;
+        breachYb = XY.Y+height > cell.Y && XY.Y < cell.Y;
+        YAligned = XY.Y == cell.Y && height == cell.height; 
+        XAligned = XY.X == cell.X && height == cell.height; 
+        if(xDiff < yDiff){
+            if(up){
+                if(breachYt){
+                    if((breachXl || breachXr || XAligned)){
+                        XY.Y = cell.Y+cell.height; 
+                    }
+                }
+            }
+            else if(down){
+                if(breachYb){
+                    if((breachXl || breachXr || XAligned)){
+                        XY.Y = cell.Y-height; 
+                    }
+                }
+            }
+            breachXr = XY.X+width > cell.X && XY.X < cell.X; 
+            breachXl = XY.X < cell.X+cell.width && XY.X+width > cell.X+cell.width;
+            breachYt = XY.Y < cell.Y+cell.height && XY.Y+height > cell.Y+cell.height;
+            breachYb = XY.Y+height > cell.Y && XY.Y < cell.Y;
+            YAligned = XY.Y == cell.Y && height == cell.height; 
+            XAligned = XY.X == cell.X && height == cell.height; 
+            if(right){
+                if(breachXr){
+                    if((breachYb || breachYt || YAligned)){
+                        XY.X = cell.X-width;  
+                    }
+                }
+            }
+            else if(left){
+                if(breachXl){
+                    if((breachYb || breachYt || YAligned)){
+                        XY.X = cell.X+cell.width; 
+                    }
+                }
+            } 
+        }
+        else if(xDiff > yDiff){
+            if(right){
+                if(breachXr){
+                    if((breachYb || breachYt || YAligned)){
+                        XY.X = cell.X-width;  
+                    }
+                }
+            }
+            else if(left){
+                if(breachXl){
+                    if((breachYb || breachYt || YAligned)){
+                        XY.X = cell.X+cell.width; 
+                    }
+                }
+            } 
+            breachXr = XY.X+width > cell.X && XY.X < cell.X; 
+            breachXl = XY.X < cell.X+cell.width && XY.X+width > cell.X+cell.width;
+            breachYt = XY.Y < cell.Y+cell.height && XY.Y+height > cell.Y+cell.height;
+            breachYb = XY.Y+height > cell.Y && XY.Y < cell.Y;
+            YAligned = XY.Y == cell.Y && height == cell.height; 
+            XAligned = XY.X == cell.X && height == cell.height; 
+            if(up){
+                if(breachYt){
+                    if((breachXl || breachXr || XAligned)){
+                        XY.Y = cell.Y+cell.height; 
+                    }
+                }
+            }
+            else if(down){
+                if(breachYb){
+                    if((breachXl || breachXr || XAligned)){
+                        XY.Y = cell.Y-height; 
+                    }
+                }
+            }
+        }
+        else{
+            if(right){
+                if(breachXr){
+                    if((breachYb || breachYt || YAligned)){
+                        XY.X = XY.X+0.1; 
+                    }
+                }
+            }
+            else if(left){
+                if(breachXl){
+                    if((breachYb || breachYt || YAligned)){
+                        XY.X = XY.X-0.1; 
+                    }
+                }
+            } 
+            breachXr = XY.X+width > cell.X && XY.X < cell.X; 
+            breachXl = XY.X < cell.X+cell.width && XY.X+width > cell.X+cell.width;
+            breachYt = XY.Y < cell.Y+cell.height && XY.Y+height > cell.Y+cell.height;
+            breachYb = XY.Y+height > cell.Y && XY.Y < cell.Y;
+            YAligned = XY.Y == cell.Y && height == cell.height; 
+            XAligned = XY.X == cell.X && height == cell.height; 
+            if(up){
+                if(breachYt){
+                    if((breachXl || breachXr || XAligned)){
+                        XY.Y = XY.Y-0.2; 
+                    }
+                }
+            }
+            else if(down){
+                if(breachYb){
+                    if((breachXl || breachXr || XAligned)){
+                        XY.Y = XY.Y+0.2;  
+                    }
+                }
+            }
+        }
+    }
+    return XY; 
+
+//   colliders = blocks.filter((block) => {
+
+//   });
+//   return colliders; 
+}
+
+var tick = 0;
+var tickEveryXms = 16; //USUALLY 16
+var moved = true; 
+function gameLoop(box, front) {
+  setTimeout(() => {
+    var x = +box.style.left.split("px")[0];
+    var y = +box.style.top.split("px")[0];
+    var width = +box.style.width.split("px")[0];
+    var height = +box.style.height.split("px")[0];
+    var hw = +front.style.width.split("px")[0]; 
+    var hh = +front.style.height.split("px")[0];
+    var hx = +front.style.left.split("px")[0];
+    var hy = +front.style.top.split("px")[0];
+    if (!stop) {
+        if (up) {
+            y = y - distance;
+            moved = true; 
+        }
+        if (down) {
+            y = y + distance;
+            moved = true; 
+        }
+        if (left) {
+            x = x - distance;
+            moved = true; 
+        }
+        if (right) {
+            x = x + distance;
+            moved = true; 
+        }
+        if (flash) {
+            box.style["background-color"] = "red";
+        } else {
+            box.style["background-color"] = "black";
+        }
+        if(moved){
+            var XY;
+            XY = checkBounds(x, y, width, height, map.TLX, map.TLY, map.BRX, map.BRY);
+            y = XY.Y
+            x = XY.X
+            XY = checkCollision(x, y, width, height); 
+            y = XY.Y; 
+            x = XY.X; 
+        }
+        if (lookUp){
+            hw = width;
+            hh = height/4; 
+            hx = x; 
+            hy = y-hh+1*(1/4); 
+        }
+        else if (lookDown){
+            hw = width; 
+            hh = height/4;
+            hx = x; 
+            hy = y+height; 
+        }
+        else if(lookLeft){
+            hw = width/4; 
+            hh = height; 
+            hx = x-hw; 
+            hy = y;
+        }
+        else if(lookRight){
+            hw = width/4; 
+            hh = height; 
+            hx = x+width; 
+            hy = y; 
+        }
+        front.style.left = hx+"px";
+        front.style.top = hy+"px"; 
+        front.style.width = hw+"px"; 
+        front.style.height = hh+"px"; 
+        box.style.left = x+"px"; 
+        box.style.top = y+"px"; 
+      if(moved){ 
+        map.getCellsNear(x, y, 3).forEach((cell)=>{
+            if(cell.contents){
+                if(cell.contents.length>0){
+                    cell.refreshColorFromContent(); 
+                    cell.redrawElement(); 
+                }
+            }
+        }) 
+        map.getCellsNear(x, y, 2).forEach((cell)=>{
+            cell.color = "blue"; 
+            cell.redrawElement(); 
+        })
+      }
+      moved = false; 
+      if (tick % 500 == 0) {
+        //console.log("CURRENT LOCATION:", box.style.left, ",", box.style.top);
+      }
+      gameLoop(box, front);
+    }
+  }, tickEveryXms);
+}
+
+class Arrow {
+  id
+  frontID
+  facing = "R"; 
+  width = 10; 
+  height = 10; 
+  color = "black"; 
+  handColor = "red"; 
+  x = 10; 
+  y = 10; 
+  constructor(id) {
+    this.id = id ? id : "box";
+    this.frontID = (id ? id : "box")+"FRONT"; 
+    this.listen = true;
+    console.log(`Arrow: id:${this.id} front:${this.frontID}`); 
+  }
+
+  getHTML() {
+    var hw = this.width/4; 
+    var hh = this.height; 
+    var hx = this.x+this.width; 
+    var hy = this.y;
+    var baseTML = `<div
+                        id="${this.id}" 
+                        style="
+                            position: absolute;
+                            width:${this.width}px;
+                            height:${this.height}px; 
+                            left:${this.x}px; 
+                            top:${this.y}px; 
+                            background-color:${this.color};">
+                    </div>`
+    var fronTML =  `<div 
+                        id="${this.frontID}"
+                        style="
+                            position: absolute;
+                            width:${hw}px; 
+                            height:${hh}px; 
+                            left:${hx}px; 
+                            top:${hy}px; 
+                            background-color:${this.handColor};">
+                    </div>`
+    console.log(baseTML, fronTML); 
+    return baseTML + fronTML; 
+            
+  }
+  stopListening() {
+    this.listen = false;
+  }
+  startListening() {
+    this.listen = true;
+  }
+}
+
+  </script>
+  <body>
+    HOME
+    <button onclick="start(this)">START</button>
+  </body>
+</html>
