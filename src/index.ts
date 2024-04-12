@@ -8,11 +8,9 @@ const server = http.createServer((req:any, res:any) => {
     console.log('Request for ' + req.url + ' by method ' + req.method);
 
     if (req.method == 'GET') {
-        var fileUrl;
-        if (req.url == '/') fileUrl = '/index.html';
-        else fileUrl = req.url;
+        var filePath = __dirname+'/index.html'; 
+        if (req.url !== '/') filePath = path.resolve(__dirname+'/view/' + req.url + '.html');
 
-        var filePath = path.resolve(__dirname+'/view/' + fileUrl + '.html');
         console.log("looking for ->"+filePath); 
         const fileExt = path.extname(filePath);
         if (fileExt == '.html') {

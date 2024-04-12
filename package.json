@@ -8,8 +8,9 @@
     "reload-statics": "cp -R ./src/view ./dist/. ; cp ./src/*.html ./dist/.",
     "build": "npm run reload-statics; tsc",
     "clean": "rm -rf ./dist/*",
-    "clean-build": "npm run clean; npm run build",
-    "watch": "nodemon ./dist"
+    "clean-build": "npm run clean && npm run build",
+    "watch": "nodemon ./dist",
+    "start": "npm run clean-build && npm run watch"
   },
   "author": "Joseph Jackson",
   "license": "ISC",
